@@ -4,7 +4,7 @@ from fsm import FSM
 
 
 bot_base = DataBase()
-BOT_TOKEN = ''
+BOT_TOKEN = "8390969987:AAEE0A82IaxvJCay93FmFiKvlF061AWTyVU"
 
 post_base = DataBase()
 end_base = DataBase()

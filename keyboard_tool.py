@@ -2,15 +2,17 @@ import telebot
 import json
 
 
-file  = open("RU.json", encoding="utf-8")
-bot_text  = json.load(file)
+file = open("RU.json", encoding="utf-8")
+bot_text = json.load(file)
+
 
 def get_menu_keyboard():
     buttons = bot_text["info"]["menu_buttons"]
     menu_keyboard = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
-    menu_keyboard.row(buttons)
+    menu_keyboard.row(buttons[0], buttons[1])
 
     return menu_keyboard
+
 
 def get_registration_keyboard(user_id):
     buttons = bot_text["menu"]["registration_buttons"]
@@ -20,13 +22,15 @@ def get_registration_keyboard(user_id):
 
     return registration_keyboard
 
+
 def create_inlineKeyboard(key, row=0):
     keyboard = telebot.types.InlineKeyboardMarkup()
     key_list = []
     count = 0
     for i in key:
-        key_list.append(telebot.types.InlineKeyboardButton(
-            text=i, callback_data=key.get(i)))
+        key_list.append(
+            telebot.types.InlineKeyboardButton(text=i, callback_data=key.get(i))
+        )
         count += 1
 
         if count >= row:
