@@ -6,7 +6,10 @@
             "request": "launch",
             "program": "routes.py",
             "console": "integratedTerminal",
-            "sudo": true
+            "sudo": true,
+            "autoReload": {
+                "enable": true
+            }
         }
     ]
 }

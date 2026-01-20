@@ -1,10 +1,14 @@
+import configparser
 import telebot
 from base import DataBase
 from fsm import FSM
 
 
+config = configparser.ConfigParser()
+config.read("settings.ini")
+
 bot_base = DataBase()
-BOT_TOKEN = "8390969987:AAEE0A82IaxvJCay93FmFiKvlF061AWTyVU"
+BOT_TOKEN = config["Telegramm"]["BOT_TOKEN"]
 
 post_base = DataBase()
 end_base = DataBase()

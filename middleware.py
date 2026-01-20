@@ -1,4 +1,5 @@
 import os
+import configparser
 import time
 import models
 import keyboard_tool
@@ -10,6 +11,11 @@ from datetime import timedelta
 from models import session
 from sqlalchemy import and_
 from app import middleware_base
+from telebot.apihelper import ApiTelegramException
+
+
+config = configparser.ConfigParser()
+config.read("settings.ini")
 
 
 def check_user(user_id):
@@ -18,7 +24,7 @@ def check_user(user_id):
         return user
     else:
         return False
-    
+
 
 def create_registration_progress(user_id):
     middleware_base.delete(models.RegisterProgress, user_id=str(user_id))
@@ -26,6 +32,7 @@ def create_registration_progress(user_id):
     middleware_base.delete(models.State, user_id=str(user_id))
 
     return registration_info(user_id)
+
 
 def registration_info(user_id):
     tmp = check_registration(user_id)
@@ -35,20 +42,24 @@ def registration_info(user_id):
 
 def check_registration(user_id):
     return middleware_base.get_one(models.RegisterProgress, user_id=str(user_id))
-    
+
 
 def my_registration_info(user_id, row=0):
-    text = keyboard_tool.bot_text["my_registration"]
-    active = middleware_base.select_all(models.Register, user_id=str(user_id))
-    expired = middleware_base.select_all(models.Register, user_id=str(user_id))
-    all_registrations = active + expired
+    if row < 0:
+        return "first"
+    text = keyboard_tool.bot_text["my_reg"]
+    active = middleware_base.select_regs_active(models.Register, user_id=str(user_id))
+    expired = middleware_base.select_regs_expired(models.Register, user_id=str(user_id))
+    all_registrations = expired + active
     if len(all_registrations) == 0:
-        bot.send_message(user_id, text["no_registration"])
-    
-
+        bot.send_message(user_id, text["no_reg"])
+    elif row == len(all_registrations):
+        return "last"
     try:
-        registration_text = f"{text["your_registration"]}\n{text["start_time_text"]} {all_registrations[row].start_time}\n{text["zone"]} {all_registrations[row].zona}\n{text["duration_time_text"]} {all_registrations[row].duration}"
-        keyboard = keyboard_tool.create_inlineKeyboard({text['back']: "back", text['next']: "next"}, 2)
+        registration_text = f"{text["your_reg"]}\n{text["start_time_text"]} {datetime.strftime(all_registrations[row].datetime, "%d-%m %H:%M")}\n{text["zone"]} {all_registrations[row].zone}\n{text["duration_time_text"]} {all_registrations[row].duration}\n{text["cost"]} {all_registrations[row].cost}"
+        keyboard = keyboard_tool.create_inlineKeyboard(
+            {text["back"]: "back", text["next"]: "next"}, 2
+        )
         bot.send_message(user_id, registration_text, reply_markup=keyboard)
     except Exception as e:
         print(e)
@@ -61,11 +72,21 @@ def start_registration_timer():
         while 1:
             for r in post_base.select_all(models.Register, informed=False):
                 post_time = datetime.now()
-                if post_time >= datetime.strptime(r.start_time, '%Y-%m-%d %H:%M') + timedelta(minutes=30):
-                    safed = False
-                    text = keyboard_tool.bot_text["my_registration"]
-                    bot.send_message(admin_id,  f"Запись через полчаса\n{text["start_time_text"]} {r.start_time}\n{text["zone"]} {r.zona}\n{text["duration_time_text"]} {r.duration}")
-                    bot.send_message(r.user_id,  f"Напоминаю о записи через полчаса:\n{text["start_time_text"]} {r.start_time}\n{text["zone"]} {r.zona}\n{text["duration_time_text"]} {r.duration}")
+                reg_time = r.datetime
+                reg_time_f = datetime.strftime(reg_time, "%d-%m %H:%M")
+                if post_time >= reg_time + timedelta(minutes=30):
+                    text = keyboard_tool.bot_text["my_reg"]
+                    try:
+                        bot.send_message(
+                            config["Telegramm"]["ADMIN_ID"],
+                            f"Запись через полчаса\n{text["start_time_text"]} {reg_time_f}\n{text["zone"]} {r.zone}\n{text["duration_time_text"]} {r.duration}\n{text["cost"]} {r.cost}",
+                        )
+                    except ApiTelegramException:
+                        pass
+                    bot.send_message(
+                        r.user_id,
+                        f"Напоминаю о записи через полчаса:\n{text["start_time_text"]} {reg_time_f}\n{text["zone"]} {r.zone}\n{text["duration_time_text"]} {r.duration}\n{text["cost"]} {r.cost}",
+                    )
 
                     post_base.update(models.Register, {"informed": True}, id=r.id)
             time.sleep(5)
@@ -85,15 +106,22 @@ def get_datas():
 def get_timeslots(data: datetime):
     start_time = datetime.now() + timedelta(hours=2)
     end_time = datetime.now().replace(hour=20, minute=0, second=0, microsecond=0)
-    if data.strftime("%m-%d") != datetime.now().strftime("%m-d%"):
-        start_time = start_time.replace(day=data.day, hour=10, minute=30, second=0, microsecond=0)
-        end_time = end_time.replace(day=data.day)
+    if data != datetime.now().strftime("%d-%m-%y"):
+        start_time = start_time.replace(
+            day=datetime.strptime(data, "%d-%m-%y").day,
+            hour=10,
+            minute=30,
+            second=0,
+            microsecond=0,
+        )
+        end_time = end_time.replace(day=datetime.strptime(data, "%d-%m-%y").day)
 
     if start_time.minute < 30:
         rounded_time = start_time.replace(minute=30, second=0, microsecond=0)
     else:
-        rounded_time = start_time.replace(hour=start_time.hour + 1, minute=0, second=0, microsecond=0)
-
+        rounded_time = start_time.replace(
+            hour=start_time.hour + 1, minute=0, second=0, microsecond=0
+        )
 
     timeslots_count = (end_time - rounded_time) // timedelta(minutes=30)
     timeslots = [rounded_time]
@@ -103,6 +131,4 @@ def get_timeslots(data: datetime):
 
     timeslots_f = [el.strftime("%H:%M") for el in timeslots]
 
-
-    return timeslots
-
+    return timeslots_f

@@ -1,8 +1,8 @@
 import os
-
+import configparser
 from sqlalchemy import (
     Column,
-    Integer,
+    DateTime,
     String,
     LargeBinary,
     PickleType,
@@ -15,9 +15,10 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm import scoped_session
 
 
-LINK = "postgresql+psycopg://alex:9999@localhost/bot_register"
+config = configparser.ConfigParser()
+config.read("settings.ini", encoding="utf-8-sig")
 
-engine = create_engine(LINK, echo=False)
+engine = create_engine(config["SQLAchemy"]["SQLALCHEMY_DATABASE_URI"], echo=False)
 session = scoped_session(sessionmaker(bind=engine, autoflush=False))
 
 Base = declarative_base()
@@ -55,22 +56,22 @@ class Register(Base):
     __tablename__ = "register"
     id = Column(BigInteger, primary_key=True)
     user_id = Column(String)
-    zona = Column(String)
+    zone = Column(String)
     duration = Column(String)
-    date = Column(String)
-    time = Column(String)
+    datetime = Column(DateTime)
     informed = Column(Boolean)
+    cost = Column(String)
 
-    def __init__(self, user_id, zona, duration, date, time):
+    def __init__(self, user_id, zone, duration, datetime, cost):
         self.user_id = user_id
-        self.zona = zona
+        self.zone = zone
         self.duration = duration
-        self.date = date
-        self.time = time
+        self.datetime = datetime
+        self.cost = cost
         self.informed = False
 
     def __repr__(self):
-        return f"<Register(id={self.id}, user_id={self.user_id}, zona={self.zona}, duration={self.duration}, start_time={self.start_time})>"
+        return f"<Register(id={self.id}, user_id={self.user_id}, zone={self.zone}, duration={self.duration}, start_time={self.datetime})>"
 
 
 class State(Base):

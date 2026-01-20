@@ -1,10 +1,15 @@
 import time
+import configparser
 import middleware
 from app import main_base as base
 import models
 from app import bot, fsm
 import keyboard_tool
 from keyboard_tool import bot_text
+from datetime import datetime, timedelta
+
+
+middleware.start_registration_timer()
 
 
 def check_user(func):
@@ -40,107 +45,226 @@ def my_registrations(message):
     fsm.set_state(message.chat.id, "my_draws", number=0)
 
 
+@bot.callback_query_handler(func=lambda call: True and call.data == "next")
+def next_reg(call):
+    try:
+        number = int(fsm.get_state(call.message.chat.id)[1]["number"]) + 1
+        tmp = middleware.my_registration_info(call.message.chat.id, row=number)
+        if tmp == "last":
+            bot.answer_callback_query(
+                callback_query_id=call.id,
+                show_alert=True,
+                text=bot_text["my_reg"]["last"],
+            )
+            return
+        bot.delete_message(call.message.chat.id, call.message.message_id)
+        fsm.set_state(call.message.chat.id, "my_regs", number=number)
+    except:
+        base.delete(models.State, user_id=call.mesage.chat.id)
+        bot.delete_message(call.message.chat.id, call.message.message_id)
+
+
+@bot.callback_query_handler(func=lambda call: True and call.data == "back")
+def prev_reg(call):
+    try:
+        number = int(fsm.get_state(call.message.chat.id)[1]["number"]) - 1
+        tmp = middleware.my_registration_info(call.message.chat.id, row=number)
+        if tmp == "first":
+            bot.answer_callback_query(
+                callback_query_id=call.id,
+                show_alert=True,
+                text=bot_text["my_reg"]["first"],
+            )
+            return
+
+        bot.delete_message(call.message.chat.id, call.message.message_id)
+        fsm.set_state(call.message.chat.id, "my_regs", number=number)
+    except:
+        base.delete(models.State, user_id=call.mesage.chat.id)
+        bot.delete_message(call.message.chat.id, call.message.message_id)
+
+
 @bot.message_handler(
     func=lambda message: message.text == bot_text["info"]["menu_buttons"][0]
 )
 def choose_zone(message):
+    buttons = {el: el for el in bot_text["reg"]["zone_buttons"]}
     bot.send_message(
         message.chat.id,
         bot_text["reg"]["zone"],
         reply_markup=keyboard_tool.create_inlineKeyboard(
-            bot_text["reg"]["zone_buttons"], 4
+            buttons,
+            4,
         ),
     )
     fsm.set_state(message.chat.id, "pick zone")
 
 
-@bot.message_handler(
-    func=lambda message: fsm.get_state(message.chat.id)[0] == "pick zone"
+@bot.callback_query_handler(
+    func=lambda call: fsm.get_state(call.message.chat.id)[0] == "pick zone"
 )
-def choose_duration(message):
-    if message.text in ["ШВЗ", "Cпина", "Ноги"]:
-        buttons = ["30мин 1000₽", "60 мин 2000₽"]
-    elif message.text == "Все тело":
-        buttons = ["60 мин 2000₽", "90 мин 3000₽", "120 мин 4000₽"]
+def choose_duration(call):
+    if call.data in ["ШВЗ", "Cпина", "Ноги"]:
+        buttons = {
+            "30 мин - 1000 ₽": "30 мин - 1000 ₽",
+            "60 мин - 2000 ₽": "60 мин - 2000 ₽",
+        }
+    elif call.data == "Все тело":
+        buttons = {
+            "60 мин - 2000 ₽": "60 мин - 2000 ₽",
+            "90 мин - 3000 ₽": "90 мин - 3000 ₽",
+            "120 мин - 4000 ₽": "120 мин - 4000 ₽",
+        }
     else:
-        bot.send_message(message.chat.id, bot_text["reg"]["error"])
+        bot.send_message(call.message.chat.id, bot_text["reg"]["error"])
         return
-    bot.send_message(
-        message.chat.id,
-        bot_text["reg"]["duration"],
-        reply_markup=keyboard_tool.create_inlineKeyboard(buttons, len(buttons)),
+    bot.edit_message_text(
+        bot_text["reg"]["duration_time"],
+        call.message.chat.id,
+        message_id=call.message.message_id,
     )
-    fsm.set_state(message.chat.id, "pick duration", duration_pull=buttons)
+    bot.edit_message_reply_markup(
+        call.message.chat.id,
+        call.message.message_id,
+        call.inline_message_id,
+        reply_markup=keyboard_tool.create_inlineKeyboard(buttons),
+    )
+    fsm.set_state(
+        call.message.chat.id,
+        "pick duration",
+        zone=call.data,
+        duration_pull=[str(el) for el in buttons.values()],
+    )
 
 
-@bot.message_handler(
-    func=lambda message: fsm.get_state(message.chat.id)[0] == "pick duration"
+@bot.callback_query_handler(
+    func=lambda call: fsm.get_state(call.message.chat.id)[0] == "pick duration"
 )
-def choose_date(message):
-    if message.data not in fsm.get_state(message.chat.id)[1]:
-        bot.send_message(message.chat.id, bot_text["reg"]["error"])
+def choose_date(call):
+    if call.data not in fsm.get_state(call.message.chat.id)[1]["duration_pull"]:
+        bot.send_message(call.message.chat.id, bot_text["reg"]["error"])
         return
     datas = middleware.get_datas()
-    bot.send_message(
-        message.chat.id,
+    buttons = {el: el for el in datas}
+    bot.edit_message_text(
         bot_text["reg"]["start_date"],
-        reply_markup=keyboard_tool.create_inlineKeyboard(datas, len(datas)),
+        call.message.chat.id,
+        message_id=call.message.message_id,
     )
-    fsm.set_state(message.chat.id, "pick date", date_pull=datas)
+    bot.edit_message_reply_markup(
+        call.message.chat.id,
+        call.message.message_id,
+        call.inline_message_id,
+        reply_markup=keyboard_tool.create_dateKeyboard(buttons),
+    )
+    prev_args = fsm.get_state(call.message.chat.id)[1]
+    fsm.set_state(
+        call.message.chat.id,
+        "pick date",
+        **prev_args,
+        duration=call.data.split(" - ")[0],
+        cost=call.data.split(" - ")[1],
+        date_pull=[el.strftime("%d-%m-%y") for el in datas],
+    )
 
 
-@bot.message_handler(
-    func=lambda message: fsm.get_state(message.chat.id)[0] == "pick date"
+@bot.callback_query_handler(
+    func=lambda call: fsm.get_state(call.message.chat.id)[0] == "pick date"
 )
-def choose_time(message):
-    if message.text not in fsm.get_state(message.chat.id)[1]:
-        bot.send_message(message.chat.id, bot_text["reg"]["error"])
+def choose_time(call):
+    if call.data not in fsm.get_state(call.message.chat.id)[1]["date_pull"]:
         return
-    times = middleware.get_timeslots(message.text)
-    bot.send_message(
-        message.chat.id,
+    timeslots = middleware.get_timeslots(call.data)
+    buttons = {el: el for el in timeslots}
+    bot.edit_message_text(
         bot_text["reg"]["start_time"],
-        reply_markup=keyboard_tool.create_inlineKeyboard(times, len(times)),
+        call.message.chat.id,
+        message_id=call.message.message_id,
     )
-    fsm.set_state(message.chat.id, "pick time", timeslots=times)
+    bot.edit_message_reply_markup(
+        call.message.chat.id,
+        call.message.message_id,
+        call.inline_message_id,
+        reply_markup=keyboard_tool.create_inlineKeyboard(buttons, 7),
+    )
+    prev_args = fsm.get_state(call.message.chat.id)[1]
+    fsm.set_state(
+        call.message.chat.id,
+        "pick time",
+        **prev_args,
+        date=call.data,
+        timeslots=timeslots,
+    )
 
 
-@bot.message_handler(
-    func=lambda message: fsm.get_state(message.chat.id)[0] == "pick time"
+@bot.callback_query_handler(
+    func=lambda call: fsm.get_state(call.message.chat.id)[0] == "pick time"
 )
-def confirm_registration(message):
-    if message.text not in fsm.get_state(message.chat.id)[1]:
-        bot.send_message(message.chat.id, bot_text["reg"]["error"])
+def confirm_registration(call):
+    if call.data not in fsm.get_state(call.message.chat.id)[1]["timeslots"]:
+        bot.send_message(call.message.chat.id, bot_text["reg"]["error"])
         return
-    bot.send_message(
-        message.chat.id,
-        bot_text["my_reg"]["your_reg"],
+    data = fsm.get_state(call.message.chat.id)[1]
+    bot.edit_message_text(
+        f"{bot_text["my_reg"]["your_reg"]}\n{bot_text["my_reg"]["start_time_text"]}{data["date"]} {call.data}\n{bot_text["my_reg"]["zone"]}{data["zone"]}\n{bot_text["my_reg"]["duration_time_text"]}{data["duration"]}\n{bot_text["my_reg"]["cost"]} {data["cost"]}",
+        call.message.chat.id,
+        message_id=call.message.message_id,
+    )
+    bot.edit_message_reply_markup(
+        call.message.chat.id,
+        call.message.message_id,
+        call.inline_message_id,
         reply_markup=keyboard_tool.create_inlineKeyboard(
             {
-                bot_text["reg"]["submit_reg"]: bot_text["reg"]["submit_reg"],
-                bot_text["reg"]["decline_reg"]: bot_text["reg"]["decline_reg"],
+                bot_text["reg"]["submit_reg"]: "confirm",
+                bot_text["reg"]["decline_reg"]: "decline",
             },
             2,
         ),
     )
-    fsm.set_state(message.chat.id, "confirm")
+    prev_args = fsm.get_state(call.message.chat.id)[1]
+    user_time = datetime.strptime(call.data, "%H:%M")
+    user_date = datetime.strptime(data["date"], "%d-%m-%y")
+    user_datetime = user_time.replace(
+        day=user_date.day, month=user_date.month, year=user_date.year
+    )
+    fsm.set_state(call.message.chat.id, "confirm", **prev_args, datetime=user_datetime)
 
 
-@bot.message_handler(
-    func=lambda message: fsm.get_state(message.chat.id)[0] == "confirm"
-    and middleware.check_registration(message.chat.id) != None
-    and message.text == bot_text["reg"]["submit_reg"]
+@bot.callback_query_handler(
+    func=lambda call: fsm.get_state(call.message.chat.id)[0] == "confirm"
+    and call.data == "confirm"
 )
-def submit(message):
-    tmp = base.get_one(models.RegisterProgress, user_id=str(message.chat.id))
-    base.new(models.Register, tmp.user_id, tmp.zona, tmp.duration, tmp.date, tmp.time)
-    base.delete(models.RegisterProgress, user_id=str(message.chat.id))
-    base.delete(models.State, user_id=str(message.chat.id))
+def submit(call):
+    data = fsm.get_state(call.message.chat.id)[1]
+    base.new(
+        models.Register,
+        call.message.chat.id,
+        data["zone"],
+        data["duration"],
+        data["datetime"],
+        data["cost"],
+    )
+    base.delete(models.State, user_id=call.message.chat.id)
 
-    bot.send_message(
-        message.chat.id,
-        bot_text["reg"]["submit_text"],
-        reply_markup=keyboard_tool.get_menu_keyboard(),
+    bot.edit_message_reply_markup(
+        call.message.chat.id, call.message.message_id, call.inline_message_id, None
+    )
+
+    bot.answer_callback_query(
+        call.id, show_alert=True, text=bot_text["reg"]["submit_text"]
+    )
+
+
+@bot.callback_query_handler(
+    func=lambda call: fsm.get_state(call.message.chat.id)[0] == "confirm"
+    and call.data == "decline"
+)
+def decline(call):
+    base.delete(models.State, user_id=call.message.chat.id)
+    bot.delete_message(call.message.chat.id, call.message.message_id)
+    bot.answer_callback_query(
+        call.id, show_alert=True, text=bot_text["reg"]["decline_text"]
     )
 
 
