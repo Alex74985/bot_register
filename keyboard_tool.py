@@ -39,22 +39,39 @@ def get_registration_keyboard(user_id):
     return registration_keyboard
 
 
-def create_inlineKeyboard(key, row=0):
-    keyboard = telebot.types.InlineKeyboardMarkup()
-    key_list = []
-    count = 0
-    for i in key:
-        key_list.append(
-            telebot.types.InlineKeyboardButton(text=i, callback_data=key.get(i))
-        )
-        count += 1
+def create_inlineKeyboard(key: dict, row=3):
+    if not isinstance(list(key.values())[0], dict):
+        key = {key: {"callback_data": key} for key in key}
+    keyboard = telebot.util.quick_markup(key, row)
+    return keyboard
 
-        if count >= row:
-            keyboard.add(*[i for i in key_list])
-            key_list = []
-            count = 0
-        if list(key.keys())[-1] == i:
-            keyboard.add(*[i for i in key_list])
+
+def add_back(keyboard: telebot.types.InlineKeyboardMarkup):
+    keyboard.add(
+        telebot.types.InlineKeyboardButton(
+            text=bot_text["reg"]["back"], callback_data="_back"
+        )
+    )
+
+    return keyboard
+
+
+def create_timeKeybard(key):
+    key = {key: {"callback_data": key} for key in key}
+    keyboard = telebot.util.quick_markup(key, 4)
+    keyboard.add(
+        telebot.types.InlineKeyboardButton(
+            text=bot_text["reg"]["prev_timeslots_text"], callback_data="prev_day"
+        ),
+        telebot.types.InlineKeyboardButton(
+            text=bot_text["reg"]["next_timeslots_text"], callback_data="next_day"
+        ),
+    )
+    keyboard.add(
+        telebot.types.InlineKeyboardButton(
+            text=bot_text["reg"]["back"], callback_data="_back"
+        )
+    )
     return keyboard
 
 
@@ -87,8 +104,7 @@ def create_dateKeyboard(d, month=None):
         telebot.types.InlineKeyboardButton(text="Вс", callback_data="None"),
     )
 
-    start_day = today.replace(day=1)
-    for _ in range(start_day.weekday()):
+    for _ in range(today.weekday()):
         key_list.append(
             telebot.types.InlineKeyboardButton(text=" ", callback_data="None")
         )
@@ -111,5 +127,11 @@ def create_dateKeyboard(d, month=None):
         )
 
     keyboard.add(*key_list)
+
+    keyboard.add(
+        telebot.types.InlineKeyboardButton(
+            text=bot_text["reg"]["back"], callback_data="_back"
+        )
+    )
 
     return keyboard

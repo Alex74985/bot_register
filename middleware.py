@@ -5,7 +5,7 @@ import models
 import keyboard_tool
 import random
 import threading
-from app import middleware_base, bot, post_base, end_base
+from app import middleware_base, bot, post_base
 from datetime import datetime
 from datetime import timedelta
 from models import session
@@ -74,7 +74,7 @@ def start_registration_timer():
                 post_time = datetime.now()
                 reg_time = r.datetime
                 reg_time_f = datetime.strftime(reg_time, "%d-%m %H:%M")
-                if post_time >= reg_time + timedelta(minutes=30):
+                if post_time + timedelta(minutes=30) >= reg_time:
                     text = keyboard_tool.bot_text["my_reg"]
                     try:
                         bot.send_message(
@@ -103,32 +103,46 @@ def get_datas():
     return datas
 
 
-def get_timeslots(data: datetime):
+def get_timeslots(data: datetime, reg_duration: int):
     start_time = datetime.now() + timedelta(hours=2)
-    end_time = datetime.now().replace(hour=20, minute=0, second=0, microsecond=0)
+    end_time = datetime.now().replace(hour=20, minute=30, second=0, microsecond=0)
     if data != datetime.now().strftime("%d-%m-%y"):
         start_time = start_time.replace(
             day=datetime.strptime(data, "%d-%m-%y").day,
-            hour=10,
-            minute=30,
+            hour=11,
+            minute=0,
             second=0,
             microsecond=0,
         )
         end_time = end_time.replace(day=datetime.strptime(data, "%d-%m-%y").day)
-
-    if start_time.minute < 30:
+    if start_time.minute == 0:
+        rounded_time = start_time.replace(microsecond=0, second=0)
+    elif start_time.minute < 30:
         rounded_time = start_time.replace(minute=30, second=0, microsecond=0)
     else:
         rounded_time = start_time.replace(
             hour=start_time.hour + 1, minute=0, second=0, microsecond=0
         )
 
+    occupied_timeslots = post_base.select_occupied(
+        models.Register, datetime.strptime(data, "%d-%m-%y").date()
+    )
     timeslots_count = (end_time - rounded_time) // timedelta(minutes=30)
-    timeslots = [rounded_time]
+    timeslots = []
     for _ in range(timeslots_count):
-        timeslots.append(rounded_time + timedelta(minutes=30))
+        free = True
+        for t in occupied_timeslots:
+            t_start = t.datetime.time()
+            t_end = (t.datetime + timedelta(minutes=t.duration)).time()
+            if max(t_start, rounded_time.time()) <= min(
+                t_end,
+                (rounded_time + timedelta(minutes=reg_duration)).time(),
+            ):
+                free = False
+        if free:
+            timeslots.append(rounded_time)
         rounded_time += timedelta(minutes=30)
 
     timeslots_f = [el.strftime("%H:%M") for el in timeslots]
-
+    print(timeslots_f)
     return timeslots_f

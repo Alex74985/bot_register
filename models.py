@@ -5,7 +5,7 @@ from sqlalchemy import (
     DateTime,
     String,
     LargeBinary,
-    PickleType,
+    Integer,
     BigInteger,
     Boolean,
 )
@@ -57,7 +57,7 @@ class Register(Base):
     id = Column(BigInteger, primary_key=True)
     user_id = Column(String)
     zone = Column(String)
-    duration = Column(String)
+    duration = Column(Integer)
     datetime = Column(DateTime)
     informed = Column(Boolean)
     cost = Column(String)
@@ -71,7 +71,7 @@ class Register(Base):
         self.informed = False
 
     def __repr__(self):
-        return f"<Register(id={self.id}, user_id={self.user_id}, zone={self.zone}, duration={self.duration}, start_time={self.datetime})>"
+        return f"<Register(id={self.id}, user_id={self.user_id}, zone={self.zone}, duration={self.duration}, datetime={self.datetime})>"
 
 
 class State(Base):

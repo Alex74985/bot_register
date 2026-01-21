@@ -2,6 +2,7 @@ from datetime import datetime
 from models import session
 from models import Base as BaseObj
 from models import engine as BaseEngine
+from sqlalchemy import func
 
 
 class DataBase:
@@ -30,6 +31,12 @@ class DataBase:
         if len(filter_s) > 0:
             querry = querry.filter_by(**filter_s)
         return querry.all()
+
+    def select_occupied(self, Model, date, **filter_s):
+        query = session.query(Model).where(func.date(Model.datetime) == date)
+        if len(filter_s) > 0:
+            query = query.filter_by(**filter_s)
+        return query.all()
 
     def get_one(self, Model, **filter_s):
         query = session.query(Model)
