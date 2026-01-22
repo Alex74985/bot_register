@@ -12,6 +12,7 @@ from models import session
 from sqlalchemy import and_
 from app import middleware_base
 from telebot.apihelper import ApiTelegramException
+from telebot.types import Message, CallbackQuery
 
 
 config = configparser.ConfigParser()
@@ -24,6 +25,48 @@ def check_user(user_id):
         return user
     else:
         return False
+
+
+def check_admin(func):
+    def decorator(in_data: Message | CallbackQuery):
+        if isinstance(in_data, Message):
+            if int(in_data.chat.id) == int(config["Telegramm"]["ADMIN_ID"]):
+                return func(in_data)
+        elif isinstance(in_data, CallbackQuery):
+            if int(in_data.message.chat.id) == int(config["Telegramm"]["ADMIN_ID"]):
+                return func(in_data)
+        else:
+            return False
+
+    return decorator
+
+
+def get_first_reg():
+    regs = middleware_base.select_regs_active(models.Register)
+    return regs[0]
+
+
+def get_all_regs():
+    regs = middleware_base.select_regs_active(models.Register)
+    return regs
+
+
+def get_regs_on_date(date: datetime):
+    regs = middleware_base.select_occupied(models.Register, date)
+
+    return regs
+
+
+def get_stat(user_id):
+    active_regs = middleware_base.select_regs_active(
+        models.Register, user_id=str(user_id)
+    )
+    expired_regs = middleware_base.select_regs_expired(
+        models.Register, user_id=str(user_id)
+    )
+    summ = sum([int(el.split()[0]) for el in [r.cost for r in expired_regs]])
+    user = middleware_base.get_one(models.User, user_id=user_id)
+    return active_regs, expired_regs, summ, f"@{user.user_name}"
 
 
 def create_registration_progress(user_id):
@@ -44,23 +87,30 @@ def check_registration(user_id):
     return middleware_base.get_one(models.RegisterProgress, user_id=str(user_id))
 
 
-def my_registration_info(user_id, row=0):
-    if row < 0:
-        return "first"
-    text = keyboard_tool.bot_text["my_reg"]
+def drop_registration(user_id, row):
     active = middleware_base.select_regs_active(models.Register, user_id=str(user_id))
     expired = middleware_base.select_regs_expired(models.Register, user_id=str(user_id))
     all_registrations = expired + active
+    middleware_base.delete(models.Register, id=all_registrations[row].id)
+
+
+def my_registration_info(user_id, row=0):
+    if row < 0:
+        return "first", None
+    text = keyboard_tool.bot_text["my_reg"]
+    active = middleware_base.select_regs_active(models.Register, user_id=str(user_id))
+    expired = middleware_base.select_regs_expired(models.Register, user_id=str(user_id))
+    all_registrations = active
     if len(all_registrations) == 0:
-        bot.send_message(user_id, text["no_reg"])
+        return text["no_reg"], None
     elif row == len(all_registrations):
-        return "last"
+        return "last", None
     try:
         registration_text = f"{text["your_reg"]}\n{text["start_time_text"]} {datetime.strftime(all_registrations[row].datetime, "%d-%m %H:%M")}\n{text["zone"]} {all_registrations[row].zone}\n{text["duration_time_text"]} {all_registrations[row].duration}\n{text["cost"]} {all_registrations[row].cost}"
         keyboard = keyboard_tool.create_inlineKeyboard(
-            {text["back"]: "back", text["next"]: "next"}, 2
+            {text["back"]: "back", text["next"]: "next", text["cancel"]: "cancel"}, 2
         )
-        bot.send_message(user_id, registration_text, reply_markup=keyboard)
+        return registration_text, keyboard
     except Exception as e:
         print(e)
         print(text)
@@ -79,7 +129,8 @@ def start_registration_timer():
                     try:
                         bot.send_message(
                             config["Telegramm"]["ADMIN_ID"],
-                            f"Запись через полчаса\n{text["start_time_text"]} {reg_time_f}\n{text["zone"]} {r.zone}\n{text["duration_time_text"]} {r.duration}\n{text["cost"]} {r.cost}",
+                            f"Запись через полчаса\n{str(r) + f"`{r.user_id}`"}",
+                            parse_mode="markdown",
                         )
                     except ApiTelegramException:
                         pass
@@ -106,15 +157,17 @@ def get_datas():
 def get_timeslots(data: datetime, reg_duration: int):
     start_time = datetime.now() + timedelta(hours=2)
     end_time = datetime.now().replace(hour=20, minute=30, second=0, microsecond=0)
-    if data != datetime.now().strftime("%d-%m-%y"):
+    if data.date() < datetime.now().date():
+        return []
+    if data.date() != datetime.now().date():
         start_time = start_time.replace(
-            day=datetime.strptime(data, "%d-%m-%y").day,
+            day=data.day,
             hour=11,
             minute=0,
             second=0,
             microsecond=0,
         )
-        end_time = end_time.replace(day=datetime.strptime(data, "%d-%m-%y").day)
+        end_time = end_time.replace(day=data.day)
     if start_time.minute == 0:
         rounded_time = start_time.replace(microsecond=0, second=0)
     elif start_time.minute < 30:
@@ -124,9 +177,7 @@ def get_timeslots(data: datetime, reg_duration: int):
             hour=start_time.hour + 1, minute=0, second=0, microsecond=0
         )
 
-    occupied_timeslots = post_base.select_occupied(
-        models.Register, datetime.strptime(data, "%d-%m-%y").date()
-    )
+    occupied_timeslots = post_base.select_occupied(models.Register, data.date())
     timeslots_count = (end_time - rounded_time) // timedelta(minutes=30)
     timeslots = []
     for _ in range(timeslots_count):
@@ -144,5 +195,4 @@ def get_timeslots(data: datetime, reg_duration: int):
         rounded_time += timedelta(minutes=30)
 
     timeslots_f = [el.strftime("%H:%M") for el in timeslots]
-    print(timeslots_f)
     return timeslots_f

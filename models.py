@@ -73,6 +73,9 @@ class Register(Base):
     def __repr__(self):
         return f"<Register(id={self.id}, user_id={self.user_id}, zone={self.zone}, duration={self.duration}, datetime={self.datetime})>"
 
+    def __str__(self):
+        return f"Время={self.datetime}\nЗона={self.zone}\nДлительность={self.duration}\nЗапись от  "
+
 
 class State(Base):
     __tablename__ = "user_state"

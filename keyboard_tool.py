@@ -30,6 +30,12 @@ def get_menu_keyboard():
     return menu_keyboard
 
 
+def create_answerKeyboard():
+    params = {"Да": {"callback_data": "yes"}, "Нет": {"callback_data": "no"}}
+    keyboard = telebot.util.quick_markup(params, 2)
+    return keyboard
+
+
 def get_registration_keyboard(user_id):
     buttons = bot_text["menu"]["registration_buttons"]
     registration_keyboard = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -39,10 +45,13 @@ def get_registration_keyboard(user_id):
     return registration_keyboard
 
 
-def create_inlineKeyboard(key: dict, row=3):
-    if not isinstance(list(key.values())[0], dict):
-        key = {key: {"callback_data": key} for key in key}
-    keyboard = telebot.util.quick_markup(key, row)
+def create_inlineKeyboard(params: dict, row=3):
+    if not isinstance(list(params.values())[0], dict):
+        if params.keys() != params.values():
+            params = {key: {"callback_data": val} for key, val in params.items()}
+        else:
+            params = {key: {"callback_data": key} for key in params}
+    keyboard = telebot.util.quick_markup(params, row)
     return keyboard
 
 
@@ -51,6 +60,19 @@ def add_back(keyboard: telebot.types.InlineKeyboardMarkup):
         telebot.types.InlineKeyboardButton(
             text=bot_text["reg"]["back"], callback_data="_back"
         )
+    )
+
+    return keyboard
+
+
+def add_apply_decline(keyboard: telebot.types.InlineKeyboardMarkup):
+    keyboard.add(
+        telebot.types.InlineKeyboardButton(
+            text=bot_text["reg"]["submit_reg"], callback_data="_submit"
+        ),
+        telebot.types.InlineKeyboardButton(
+            text=bot_text["reg"]["decline_reg"], callback_data="_decline"
+        ),
     )
 
     return keyboard
