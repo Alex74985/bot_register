@@ -38,6 +38,30 @@ class DataBase:
             query = query.filter_by(**filter_s)
         return query.all()
 
+    def select_permanent(self, Model, weekday, **filter_s):
+        query = (
+            session.query(Model)
+            .where(Model.weekday == weekday)
+            .where(
+                func.date(Model.time)
+                == datetime.strptime("1970-01-01", "%Y-%m-%d").date()
+            )
+            .order_by(Model.time)
+        )
+        if len(filter_s) > 0:
+            query = query.filter_by(**filter_s)
+        return query.all()
+
+    def select_temporary(self, Model, date, **filter_s):
+        query = (
+            session.query(Model)
+            .where(func.date(Model.time) == date)
+            .order_by(Model.time)
+        )
+        if len(filter_s) > 0:
+            query = query.filter_by(**filter_s)
+        return query.all()
+
     def get_one(self, Model, **filter_s):
         query = session.query(Model)
         if len(filter_s) > 0:

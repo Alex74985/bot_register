@@ -126,10 +126,13 @@ def start_registration_timer():
                 reg_time_f = datetime.strftime(reg_time, "%d-%m %H:%M")
                 if post_time + timedelta(minutes=30) >= reg_time:
                     text = keyboard_tool.bot_text["my_reg"]
+                    user_name = post_base.get_one(
+                        models.User, user_id=r.user_id
+                    ).user_name
                     try:
                         bot.send_message(
                             config["Telegramm"]["ADMIN_ID"],
-                            f"Запись через полчаса\n{str(r) + f"`{r.user_id}`"}",
+                            f"Запись через полчаса\n{str(r) + f"`{r.user_id}`\n@{user_name}"}",
                             parse_mode="markdown",
                         )
                     except ApiTelegramException:
@@ -155,44 +158,53 @@ def get_datas():
 
 
 def get_timeslots(data: datetime, reg_duration: int):
-    start_time = datetime.now() + timedelta(hours=2)
-    end_time = datetime.now().replace(hour=20, minute=30, second=0, microsecond=0)
+    permanent = middleware_base.select_permanent(
+        models.WeekdayTimeslot, data.weekday(), free=True
+    )
+    temporary_free = middleware_base.select_temporary(
+        models.WeekdayTimeslot, data.date(), free=True
+    )
+
+    temporary_ban = middleware_base.select_temporary(
+        models.WeekdayTimeslot, data.date(), free=False
+    )
+
+    all_to_today = sorted(permanent + temporary_free, key=lambda el: el.time.time())
+
     if data.date() < datetime.now().date():
         return []
-    if data.date() != datetime.now().date():
-        start_time = start_time.replace(
-            day=data.day,
-            hour=11,
-            minute=0,
-            second=0,
-            microsecond=0,
-        )
-        end_time = end_time.replace(day=data.day)
-    if start_time.minute == 0:
-        rounded_time = start_time.replace(microsecond=0, second=0)
-    elif start_time.minute < 30:
-        rounded_time = start_time.replace(minute=30, second=0, microsecond=0)
-    else:
-        rounded_time = start_time.replace(
-            hour=start_time.hour + 1, minute=0, second=0, microsecond=0
-        )
 
-    occupied_timeslots = post_base.select_occupied(models.Register, data.date())
-    timeslots_count = (end_time - rounded_time) // timedelta(minutes=30)
+    occupied = post_base.select_occupied(models.Register, data.date())
+
+    def _filter_data(s):
+        if s.time.time() not in [sh.time.time() for sh in temporary_ban]:
+            return True
+        return False
+
+    shedule = filter(_filter_data, all_to_today)
+
+    def _filter_today(s):
+        if data.date() != datetime.now().date():
+            return True
+        if s.time.time() < (datetime.now() + timedelta(minutes=120)).time():
+            return False
+        return True
+
+    shedule = filter(_filter_today, shedule)
+
     timeslots = []
-    for _ in range(timeslots_count):
+    for timeslot in shedule:
         free = True
-        for t in occupied_timeslots:
-            t_start = t.datetime.time()
-            t_end = (t.datetime + timedelta(minutes=t.duration)).time()
-            if max(t_start, rounded_time.time()) <= min(
-                t_end,
-                (rounded_time + timedelta(minutes=reg_duration)).time(),
+        for o in occupied:
+            o_start = o.datetime.time()
+            o_end = (o.datetime + timedelta(minutes=o.duration)).time()
+            if max(o_start, timeslot.time.time()) <= min(
+                o_end,
+                (timeslot.time + timedelta(minutes=reg_duration)).time(),
             ):
                 free = False
         if free:
-            timeslots.append(rounded_time)
-        rounded_time += timedelta(minutes=30)
+            timeslots.append(timeslot.time)
 
     timeslots_f = [el.strftime("%H:%M") for el in timeslots]
     return timeslots_f

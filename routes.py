@@ -133,17 +133,23 @@ def _give_regs_on_date(call):
 
 
 @bot.callback_query_handler(
-    lambda call: fsm.get_state(call.message.chat.id)[0] == "admin pick reg date"
+    lambda call: fsm.get_state(call.message.chat.id)[0]
+    in ["admin watch regs", "admin pick option", "wait id"]
     and call.data == "_back"
 )
 def back_to_menu(call):
-    bot.delete_message(call.message.chat.id, call.message.message_id)
     keyboard = keyboard_tool.create_inlineKeyboard(
         bot_text["admin_panel"]["buttons"], 1
     )
-    bot.send_message(
+    bot.edit_message_text(
+        f"{bot_text["admin_panel"]["start_text"]}",
         call.message.chat.id,
-        bot_text["admin_panel"]["start_text"],
+        message_id=call.message.message_id,
+    )
+    bot.edit_message_reply_markup(
+        call.message.chat.id,
+        call.message.message_id,
+        call.inline_message_id,
         reply_markup=keyboard,
     )
     base.delete(models.State, user_id=call.message.chat.id)
@@ -151,35 +157,173 @@ def back_to_menu(call):
 
 @bot.callback_query_handler(lambda call: call.data == "change_shedule")
 @check_admin
-def give_shedule(call):
-    datas = middleware.get_datas()
-    buttons = {el: el for el in datas}
-    bot.send_message(
+def give_choise(call):
+    bot.edit_message_text(
+        f"{bot_text['admin_panel']['choose_option']}",
         call.message.chat.id,
-        bot_text["admin_panel"]["shedule_date_text"],
-        reply_markup=keyboard_tool.create_dateKeyboard(buttons),
+        message_id=call.message.message_id,
+    )
+    bot.edit_message_reply_markup(
+        call.message.chat.id,
+        call.message.message_id,
+        call.inline_message_id,
+        reply_markup=keyboard_tool.add_back(
+            keyboard_tool.create_inlineKeyboard(
+                {
+                    bot_text["admin_panel"]["add_ts_text"]: "_add",
+                    bot_text["admin_panel"]["delete_ts_text"]: "_delete",
+                }
+            )
+        ),
     )
     fsm.set_state(
         call.message.chat.id,
-        "admin pick shedule day",
-        date_pull=[el.strftime("%d-%m-%y") for el in datas],
+        "admin pick option",
+    )
+
+
+@bot.callback_query_handler(
+    lambda call: call.data == "_back"
+    and fsm.get_state(call.message.chat.id)[0] == "admin pick shedule day"
+)
+@check_admin
+def back_to_choise(call):
+    prev_args = fsm.get_state(call.message.chat.id)[1]
+    fsm.set_state(
+        call.message.chat.id,
+        "admin pick option",
+        **prev_args,
+    )
+    give_choise(call)
+
+
+@bot.callback_query_handler(
+    lambda call: call.data in ["_delete", "_add"]
+    and fsm.get_state(call.message.chat.id)[0] == "admin pick option"
+)
+@check_admin
+def give_shedule(call):
+    datas = middleware.get_datas()
+    buttons = {el: el for el in datas}
+    bot.edit_message_text(
+        f"{bot_text["admin_panel"]["shedule_date_text"]}",
+        call.message.chat.id,
+        message_id=call.message.message_id,
+    )
+    bot.edit_message_reply_markup(
+        call.message.chat.id,
+        call.message.message_id,
+        call.inline_message_id,
+        reply_markup=keyboard_tool.create_dateKeyboard(buttons),
+    )
+    prev_args = fsm.get_state(call.message.chat.id)[1]
+    prev_args["date_pull"] = [el.strftime("%d-%m-%y") for el in datas]
+    prev_args["option"] = call.data
+    fsm.set_state(call.message.chat.id, "admin pick shedule day", **prev_args)
+
+
+@bot.callback_query_handler(
+    lambda call: call.data == "_back"
+    and fsm.get_state(call.message.chat.id)[0] == "admin pick time"
+)
+@check_admin
+def back_to_shedule(call):
+    prev_args = fsm.get_state(call.message.chat.id)[1]
+    prev_args["timeslots"] = []
+    give_shedule(call)
+
+
+@bot.callback_query_handler(
+    lambda call: fsm.get_state(call.message.chat.id)[0] == "admin pick time"
+    and call.data in ["next_day", "prev_day"]
+)
+def adjacent_day_shedule(call):
+    permanent = fsm.get_state(call.message.chat.id)[1]["permanent"]
+    text = (
+        bot_text["admin_panel"]["ts_to_delete"]
+        if fsm.get_state(call.message.chat.id)[1]["option"] == "_delete"
+        else bot_text["admin_panel"]["ts_to_append"]
+    )
+    prev_args = fsm.get_state(call.message.chat.id)[1]
+    if permanent:
+        if call.data == "next_day":
+            date_f = (
+                int(prev_args["weekday"]) + 1 if int(prev_args["weekday"]) < 6 else 0
+            )
+        else:
+            date_f = (
+                int(prev_args["weekday"]) - 1 if int(prev_args["weekday"]) > 0 else 6
+            )
+        ts = base.select_permanent(models.WeekdayTimeslot, date_f)
+        timeslots = [el.time.strftime("%H:%M") for el in ts]
+    else:
+        date = fsm.get_state(call.message.chat.id)[1]["datetime"]
+        date = date - timedelta(days=1)
+        date_f = date.strftime("%d-%m-%y")
+        timeslots = middleware.get_timeslots(date, 0)
+        prev_args["datetime"] = date
+    buttons = {key: key for key in timeslots}
+    prev_args["timeslots"] = timeslots
+    weekday = int(prev_args["weekday"])
+    if call.data == "next_day":
+        prev_args["weekday"] = weekday + 1 if weekday < 6 else 0
+    else:
+        prev_args["weekday"] = weekday - 1 if weekday > 0 else 6
+    if buttons:
+        bot.edit_message_text(
+            f"{text}\n{date_f}",
+            call.message.chat.id,
+            message_id=call.message.message_id,
+        )
+        bot.edit_message_reply_markup(
+            call.message.chat.id,
+            call.message.message_id,
+            call.inline_message_id,
+            reply_markup=keyboard_tool.add_apply_decline(
+                keyboard_tool.create_timeKeybard(buttons)
+            ),
+        )
+    else:
+        bot.edit_message_text(
+            f"{bot_text['reg']['no_timeslots_text']} {date_f}",
+            call.message.chat.id,
+            message_id=call.message.message_id,
+        )
+        datas = middleware.get_datas()
+        buttons = {el: el for el in datas}
+        bot.edit_message_reply_markup(
+            call.message.chat.id,
+            call.message.message_id,
+            call.inline_message_id,
+            reply_markup=keyboard_tool.create_dateKeyboard(buttons),
+        )
+        prev_args = fsm.get_state(call.message.chat.id)[1]
+        fsm.set_state(call.message.chat.id, "admin pick shedule day", **prev_args)
+        return
+    fsm.set_state(
+        call.message.chat.id,
+        "admin pick time",
+        **prev_args,
     )
 
 
 @bot.callback_query_handler(
     lambda call: fsm.get_state(call.message.chat.id)[0] == "admin pick shedule day"
+    and call.data in ["0", "1", "2", "3", "4", "5", "6"]
 )
 @check_admin
-def give_timeslots(call):
-    if call.data not in fsm.get_state(call.message.chat.id)[1]["date_pull"]:
-        bot.send_message(call.message.chat.id, bot_text["reg"]["error"])
-        return
-    date = datetime.strptime(call.data, "%d-%m-%y")
-    timeslots = middleware.get_timeslots(date, 0)
-    buttons = {el: el for el in timeslots}
+def give_permanent_timeslots(call):
+    ts = base.select_permanent(models.WeekdayTimeslot, int(call.data))
+    text = (
+        bot_text["admin_panel"]["ts_to_delete"]
+        if fsm.get_state(call.message.chat.id)[1]["option"] == "_delete"
+        else bot_text["admin_panel"]["ts_to_append"]
+    )
+    timeslots = [el.time.strftime("%H:%M") for el in ts]
+    buttons = {key: key for key in timeslots}
     if buttons:
         bot.edit_message_text(
-            f"{bot_text['reg']['start_time']}\n{call.data}",
+            f"{text}\n{call.data}",
             call.message.chat.id,
             message_id=call.message.message_id,
         )
@@ -205,12 +349,66 @@ def give_timeslots(call):
             call.inline_message_id,
             reply_markup=keyboard_tool.create_dateKeyboard(buttons),
         )
-        prev_args = fsm.get_state(call.message.chat.id)[1]
-        fsm.set_state(call.message.chat.id, "pick date", **prev_args)
         return
     prev_args = fsm.get_state(call.message.chat.id)[1]
-    prev_args["datetime"] = datetime.strptime(call.data, "%d-%m-%y")
     prev_args["timeslots"] = timeslots
+    prev_args["weekday"] = int(call.data)
+    prev_args["permanent"] = True
+    fsm.set_state(
+        call.message.chat.id,
+        "admin pick time",
+        **prev_args,
+    )
+
+
+@bot.callback_query_handler(
+    lambda call: fsm.get_state(call.message.chat.id)[0] == "admin pick shedule day"
+    and call.data in fsm.get_state(call.message.chat.id)[1]["date_pull"]
+)
+@check_admin
+def give_timeslots(call):
+    date = datetime.strptime(call.data, "%d-%m-%y")
+    timeslots = middleware.get_timeslots(date, 0)
+    buttons = {el: el for el in timeslots}
+    text = (
+        bot_text["admin_panel"]["ts_to_delete"]
+        if fsm.get_state(call.message.chat.id)[1]["option"] == "_delete"
+        else bot_text["admin_panel"]["ts_to_append"]
+    )
+    if buttons:
+        bot.edit_message_text(
+            f"{text}\n{call.data}",
+            call.message.chat.id,
+            message_id=call.message.message_id,
+        )
+        bot.edit_message_reply_markup(
+            call.message.chat.id,
+            call.message.message_id,
+            call.inline_message_id,
+            reply_markup=keyboard_tool.add_apply_decline(
+                keyboard_tool.create_timeKeybard(buttons)
+            ),
+        )
+    else:
+        bot.edit_message_text(
+            f"{bot_text['reg']['no_timeslots_text']} {call.data}",
+            call.message.chat.id,
+            message_id=call.message.message_id,
+        )
+        datas = middleware.get_datas()
+        buttons = {el: el for el in datas}
+        bot.edit_message_reply_markup(
+            call.message.chat.id,
+            call.message.message_id,
+            call.inline_message_id,
+            reply_markup=keyboard_tool.create_dateKeyboard(buttons),
+        )
+        return
+    prev_args = fsm.get_state(call.message.chat.id)[1]
+    prev_args["datetime"] = date
+    prev_args["timeslots"] = timeslots
+    prev_args["weekday"] = date.weekday()
+    prev_args["permanent"] = False
     fsm.set_state(
         call.message.chat.id,
         "admin pick time",
@@ -228,12 +426,29 @@ def write_chosen(call):
     if call.data not in prev_args["timeslots"]:
         bot.send_message(call.message.chat.id, bot_text["reg"]["error"])
         return
-    if "timeslots_to_delete" in prev_args:
-        prev_args["timeslots_to_delete"].append(call.data)
+    if "timeslots_to_change" in prev_args:
+        prev_args["timeslots_to_change"].append(call.data)
     else:
-        prev_args["timeslots_to_delete"] = [call.data]
+        prev_args["timeslots_to_change"] = [call.data]
     fsm.set_state(
         call.message.chat.id,
+        "admin pick time",
+        **prev_args,
+    )
+
+
+@bot.message_handler(
+    func=lambda message: fsm.get_state(message.chat.id)[0] == "admin pick time"
+    and message.text not in fsm.get_state(message.chat.id)[1]["timeslots"]
+)
+def write_entered(message):
+    prev_args = fsm.get_state(message.chat.id)[1]
+    if "timeslots_to_change" in prev_args:
+        prev_args["timeslots_to_change"].append(message.text)
+    else:
+        prev_args["timeslots_to_change"] = [message.text]
+    fsm.set_state(
+        message.chat.id,
         "admin pick time",
         **prev_args,
     )
@@ -245,10 +460,65 @@ def write_chosen(call):
 )
 @check_admin
 def save_chosen(call):
-    bot.send_message(
-        call.message.chat.id,
-        "\n".join(fsm.get_state(call.message.chat.id)[1]["timeslots_to_delete"]),
+    ts = fsm.get_state(call.message.chat.id)[1]["timeslots_to_change"]
+    permanent = fsm.get_state(call.message.chat.id)[1]["permanent"]
+    wd = fsm.get_state(call.message.chat.id)[1]["weekday"]
+    if permanent:
+        picked_date = datetime.strptime("1970-01-01", "%Y-%m-%d").date()
+    else:
+        picked_date = fsm.get_state(call.message.chat.id)[1]["datetime"].date()
+    picked_option = fsm.get_state(call.message.chat.id)[1]["option"]
+    for el in ts:
+        dt = datetime.combine(picked_date, datetime.strptime(el, "%H:%M").time())
+        print(dt)
+        if picked_option == "_delete":
+            if not permanent:
+                if not base.test(models.WeekdayTimeslot, time=dt, weekday=wd):
+                    base.new(models.WeekdayTimeslot, wd, dt, False)
+                else:
+                    base.update(
+                        models.WeekdayTimeslot,
+                        {"free": False},
+                        weekday=wd,
+                        time=dt,
+                    )
+            else:
+                if base.test(models.WeekdayTimeslot, time=dt, weekday=wd):
+                    print("Find")
+                    base.delete(models.WeekdayTimeslot, time=dt, weekday=wd)
+        if picked_option == "_add":
+            if not permanent:
+                if not base.test(models.WeekdayTimeslot, time=dt, weekday=wd):
+                    base.new(models.WeekdayTimeslot, wd, dt, True)
+                else:
+                    base.update(
+                        models.WeekdayTimeslot,
+                        {"free": True},
+                        weekday=wd,
+                        time=dt,
+                    )
+            else:
+                if not base.test(models.WeekdayTimeslot, time=dt, weekday=wd):
+                    base.new(models.WeekdayTimeslot, wd, dt, True)
+    callback_text = (
+        bot_text["admin_panel"]["_delete_ts_test"]
+        if picked_option == "_delete"
+        else bot_text["admin_panel"]["_add_ts_test"]
     )
+    bot.answer_callback_query(
+        callback_query_id=call.id,
+        show_alert=True,
+        text=f"{callback_text} {picked_date}\n{"\n".join(ts)}",
+    )
+    bot.delete_message(call.message.chat.id, call.message.message_id)
+    base.delete(models.State, user_id=call.message.chat.id)
+
+
+@bot.callback_query_handler(
+    lambda call: fsm.get_state(call.message.chat.id)[0] == "admin pick time"
+    and call.data == "_decline"
+)
+def cancel_choosen(call):
     bot.delete_message(call.message.chat.id, call.message.message_id)
     base.delete(models.State, user_id=call.message.chat.id)
 

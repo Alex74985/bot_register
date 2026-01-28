@@ -117,13 +117,13 @@ def create_dateKeyboard(d, month=None):
         telebot.types.InlineKeyboardButton(text=next_m, callback_data=next_m),
     )
     keyboard.add(
-        telebot.types.InlineKeyboardButton(text="Пн", callback_data="None"),
-        telebot.types.InlineKeyboardButton(text="Вт", callback_data="None"),
-        telebot.types.InlineKeyboardButton(text="Ср", callback_data="None"),
-        telebot.types.InlineKeyboardButton(text="Чт", callback_data="None"),
-        telebot.types.InlineKeyboardButton(text="Пт", callback_data="None"),
-        telebot.types.InlineKeyboardButton(text="Сб", callback_data="None"),
-        telebot.types.InlineKeyboardButton(text="Вс", callback_data="None"),
+        telebot.types.InlineKeyboardButton(text="Пн", callback_data="0"),
+        telebot.types.InlineKeyboardButton(text="Вт", callback_data="1"),
+        telebot.types.InlineKeyboardButton(text="Ср", callback_data="2"),
+        telebot.types.InlineKeyboardButton(text="Чт", callback_data="3"),
+        telebot.types.InlineKeyboardButton(text="Пт", callback_data="4"),
+        telebot.types.InlineKeyboardButton(text="Сб", callback_data="5"),
+        telebot.types.InlineKeyboardButton(text="Вс", callback_data="6"),
     )
 
     for _ in range(today.weekday()):

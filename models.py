@@ -77,6 +77,22 @@ class Register(Base):
         return f"Время={self.datetime}\nЗона={self.zone}\nДлительность={self.duration}\nЗапись от  "
 
 
+class WeekdayTimeslot(Base):
+    __tablename__ = "weekday_timeslots"
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    weekday = Column(Integer)
+    time = Column(DateTime)
+    free = Column(Boolean)
+
+    def __init__(self, weekday, time, free=True):
+        self.weekday = weekday
+        self.time = time
+        self.free = free
+
+    def __repr__(self):
+        return f"<(Timeslot id={self.id}, weekday={self.weekday}, time={self.time.time()})>"
+
+
 class State(Base):
     __tablename__ = "user_state"
     user_id = Column(BigInteger, primary_key=True)
