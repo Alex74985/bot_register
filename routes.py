@@ -123,7 +123,7 @@ def _give_regs_on_date(call):
     if regs:
         bot.send_message(
             call.message.chat.id,
-            f"{call.data}\n{"\n---\n".join([str(el) + f'`{el.user_id}`' for el in regs])}",
+            f"{call.data}\n{'\n---\n'.join([str(el) + f'`{el.user_id}`' for el in regs])}",
             parse_mode="markdown",
         )
     else:
