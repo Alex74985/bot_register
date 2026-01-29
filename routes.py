@@ -106,7 +106,7 @@ def _first_reg(call):
 def _all_reg(call):
     bot.send_message(
         call.message.chat.id,
-        "\n---\n".join(
+        "\\n---\\n".join(
             [str(el) + f"`{el.user_id}`" for el in middleware.get_all_regs()]
         ),
         parse_mode="markdown",
@@ -123,12 +123,12 @@ def _give_regs_on_date(call):
     if regs:
         bot.send_message(
             call.message.chat.id,
-            f"{call.data}\n{'\n---\n'.join([str(el) + f'`{el.user_id}`' for el in regs])}",
+            f"{call.data}\\n{'\\n---\\n'.join([str(el) + f'`{el.user_id}`' for el in regs])}",
             parse_mode="markdown",
         )
     else:
         bot.send_message(
-            call.message.chat.id, f"{call.data}\n{bot_text["admin_panel"]["no_regs"]}"
+            call.message.chat.id, f"{call.data}\\n{bot_text["admin_panel"]["no_regs"]}"
         )
 
 
@@ -271,7 +271,7 @@ def adjacent_day_shedule(call):
         prev_args["weekday"] = weekday - 1 if weekday > 0 else 6
     if buttons:
         bot.edit_message_text(
-            f"{text}\n{date_f}",
+            f"{text}\\n{date_f}",
             call.message.chat.id,
             message_id=call.message.message_id,
         )
@@ -323,7 +323,7 @@ def give_permanent_timeslots(call):
     buttons = {key: key for key in timeslots}
     if buttons:
         bot.edit_message_text(
-            f"{text}\n{call.data}",
+            f"{text}\\n{call.data}",
             call.message.chat.id,
             message_id=call.message.message_id,
         )
@@ -377,7 +377,7 @@ def give_timeslots(call):
     )
     if buttons:
         bot.edit_message_text(
-            f"{text}\n{call.data}",
+            f"{text}\\n{call.data}",
             call.message.chat.id,
             message_id=call.message.message_id,
         )
@@ -508,7 +508,7 @@ def save_chosen(call):
     bot.answer_callback_query(
         callback_query_id=call.id,
         show_alert=True,
-        text=f"{callback_text} {picked_date}\n{"\n".join(ts)}",
+        text=f"{callback_text} {picked_date}\\n{"\\n".join(ts)}",
     )
     bot.delete_message(call.message.chat.id, call.message.message_id)
     base.delete(models.State, user_id=call.message.chat.id)
@@ -544,7 +544,7 @@ def give_stat(message):
         if not res:
             bot.send_message(message.chat.id, "Не удалось собрать статистику")
         else:
-            text = f"Активные записи:\n{'\n---\n'.join([str(el) + f'`{el.user_id}`' for el in res[0]])}\nПрошедшие записи:\n{'\n---\n'.join([str(el) + f'`{el.user_id}`' for el in res[1]])}\n---\nВыплаченная сумма: {res[2]}\nusername - {res[3]}"
+            text = f"Активные записи:\\n{'\\n---\\n'.join([str(el) + f'`{el.user_id}`' for el in res[0]])}\\nПрошедшие записи:\\n{'\\n---\\n'.join([str(el) + f'`{el.user_id}`' for el in res[1]])}\\n---\\nВыплаченная сумма: {res[2]}\\nusername - {res[3]}"
             bot.send_message(message.chat.id, text, parse_mode="markdown")
     except:
         base.delete(models.State, user_id=message.chat.id)
@@ -815,7 +815,7 @@ def choose_time(call):
     buttons = {el: el for el in timeslots}
     if buttons:
         bot.edit_message_text(
-            f"{bot_text['reg']['start_time']}\n{call.data}",
+            f"{bot_text['reg']['start_time']}\\n{call.data}",
             call.message.chat.id,
             message_id=call.message.message_id,
         )
@@ -887,7 +887,7 @@ def next_day_timeslots(call):
     buttons = {el: el for el in timeslots}
     if buttons:
         bot.edit_message_text(
-            f"{bot_text['reg']['start_time']}\n{date_f}",
+            f"{bot_text['reg']['start_time']}\\n{date_f}",
             call.message.chat.id,
             message_id=call.message.message_id,
         )
@@ -937,7 +937,7 @@ def prev_day_timeslots(call):
     buttons = {el: el for el in timeslots}
     if buttons:
         bot.edit_message_text(
-            f"{bot_text['reg']['start_time']}\n{date_f}",
+            f"{bot_text['reg']['start_time']}\\n{date_f}",
             call.message.chat.id,
             message_id=call.message.message_id,
         )
@@ -984,7 +984,7 @@ def confirm_registration(call):
         return
     data = fsm.get_state(call.message.chat.id)[1]
     bot.edit_message_text(
-        f"{bot_text["my_reg"]["your_reg"]}\n{bot_text["my_reg"]["start_time_text"]}{data["datetime"].date()} {call.data}\n{bot_text["my_reg"]["zone"]}{data["zone"]}\n{bot_text["my_reg"]["duration_time_text"]}{data["duration"]}\n{bot_text["my_reg"]["cost"]} {data["cost"]}",
+        f"{bot_text["my_reg"]["your_reg"]}\\n{bot_text["my_reg"]["start_time_text"]}{data["datetime"].date()} {call.data}\\n{bot_text["my_reg"]["zone"]}{data["zone"]}\\n{bot_text["my_reg"]["duration_time_text"]}{data["duration"]}\\n{bot_text["my_reg"]["cost"]} {data["cost"]}",
         call.message.chat.id,
         message_id=call.message.message_id,
     )
@@ -1022,7 +1022,7 @@ def back_to_time(call):
     timeslots = middleware.get_timeslots(date, reg_duration)
     buttons = {el: el for el in timeslots}
     bot.edit_message_text(
-        f"{bot_text['reg']['start_time']}\n{date_f}",
+        f"{bot_text['reg']['start_time']}\\n{date_f}",
         call.message.chat.id,
         message_id=call.message.message_id,
     )
@@ -1062,7 +1062,7 @@ def submit(call):
 
     bot.send_message(
         int(config["Telegramm"]["ADMIN_ID"]),
-        f"{bot_text["admin_panel"]["new_reg"]}\n{str(base.get_one(models.Register, datetime=data["datetime"], user_id=str(call.message.chat.id))) + f'`{call.message.chat.id}`'}",
+        f"{bot_text["admin_panel"]["new_reg"]}\\n{str(base.get_one(models.Register, datetime=data["datetime"], user_id=str(call.message.chat.id))) + f'`{call.message.chat.id}`'}",
         parse_mode="markdown",
     )
 
