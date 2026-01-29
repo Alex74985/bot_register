@@ -130,7 +130,7 @@ def _give_regs_on_date(call):
     else:
         bot.send_message(
             call.message.chat.id,
-            f"{call.data}{os.linesep}{bot_text["admin_panel"]["no_regs"]}",
+            f"{call.data}{os.linesep}{bot_text['admin_panel']['no_regs']}",
         )
 
 
@@ -144,7 +144,7 @@ def back_to_menu(call):
         bot_text["admin_panel"]["buttons"], 1
     )
     bot.edit_message_text(
-        f"{bot_text["admin_panel"]["start_text"]}",
+        f"{bot_text['admin_panel']['start_text']}",
         call.message.chat.id,
         message_id=call.message.message_id,
     )
@@ -208,7 +208,7 @@ def give_shedule(call):
     datas = middleware.get_datas()
     buttons = {el: el for el in datas}
     bot.edit_message_text(
-        f"{bot_text["admin_panel"]["shedule_date_text"]}",
+        f"{bot_text['admin_panel']['shedule_date_text']}",
         call.message.chat.id,
         message_id=call.message.message_id,
     )
@@ -986,7 +986,7 @@ def confirm_registration(call):
         return
     data = fsm.get_state(call.message.chat.id)[1]
     bot.edit_message_text(
-        f"{bot_text["my_reg"]["your_reg"]}{os.linesep}{bot_text["my_reg"]["start_time_text"]}{data["datetime"].date()} {call.data}{os.linesep}{bot_text["my_reg"]["zone"]}{data["zone"]}{os.linesep}{bot_text["my_reg"]["duration_time_text"]}{data["duration"]}{os.linesep}{bot_text["my_reg"]["cost"]} {data["cost"]}",
+        f"{bot_text['my_reg']['your_reg']}{os.linesep}{bot_text['my_reg']['start_time_text']}{data['datetime'].date()} {call.data}{os.linesep}{bot_text['my_reg']['zone']}{data['zone']}{os.linesep}{bot_text['my_reg']['duration_time_text']}{data['duration']}{os.linesep}{bot_text['my_reg']['cost']} {data['cost']}",
         call.message.chat.id,
         message_id=call.message.message_id,
     )
@@ -1064,7 +1064,7 @@ def submit(call):
 
     bot.send_message(
         int(config["Telegramm"]["ADMIN_ID"]),
-        f"{bot_text["admin_panel"]["new_reg"]}{os.linesep}{str(base.get_one(models.Register, datetime=data["datetime"], user_id=str(call.message.chat.id))) + f'`{call.message.chat.id}`'}",
+        f"{bot_text['admin_panel']['new_reg']}{os.linesep}{str(base.get_one(models.Register, datetime=data['datetime'], user_id=str(call.message.chat.id))) + f'`{call.message.chat.id}`'}",
         parse_mode="markdown",
     )
 
