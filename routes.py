@@ -546,7 +546,7 @@ def give_stat(message):
         if not res:
             bot.send_message(message.chat.id, "Не удалось собрать статистику")
         else:
-            text = f"Активные записи:{os.linesep}{f'{os.linesep}---{os.linesep}'.join([str(el) + f'`{el.user_id}`' for el in res[0]])}\\nПрошедшие записи:{os.linesep}{f'{os.linesep}---{os.linesep}'.join([str(el) + f'`{el.user_id}`' for el in res[1]])}{os.linesep}---\\nВыплаченная сумма: {res[2]}\\nusername - {res[3]}"
+            text = f"Активные записи:{os.linesep}{f'{os.linesep}---{os.linesep}'.join([str(el) + f'`{el.user_id}`' for el in res[0]])}{os.linesep}Прошедшие записи:{os.linesep}{f'{os.linesep}---{os.linesep}'.join([str(el) + f'`{el.user_id}`' for el in res[1]])}{os.linesep}---{os.linesep}Выплаченная сумма: {res[2]}{os.linesep}username - {res[3]}"
             bot.send_message(message.chat.id, text, parse_mode="markdown")
     except:
         base.delete(models.State, user_id=message.chat.id)

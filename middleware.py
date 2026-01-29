@@ -13,6 +13,7 @@ from sqlalchemy import and_
 from app import middleware_base
 from telebot.apihelper import ApiTelegramException
 from telebot.types import Message, CallbackQuery
+import os
 
 
 config = configparser.ConfigParser()
@@ -106,7 +107,7 @@ def my_registration_info(user_id, row=0):
     elif row == len(all_registrations):
         return "last", None
     try:
-        registration_text = f"{text["your_reg"]}\n{text["start_time_text"]} {datetime.strftime(all_registrations[row].datetime, "%d-%m %H:%M")}\n{text["zone"]} {all_registrations[row].zone}\n{text["duration_time_text"]} {all_registrations[row].duration}\n{text["cost"]} {all_registrations[row].cost}"
+        registration_text = f"{text['your_reg']}{os.linesep}{text['start_time_text']} {datetime.strftime(all_registrations[row].datetime, '%d-%m %H:%M')}{os.linesep}{text['zone']} {all_registrations[row].zone}{os.linesep}{text['duration_time_text']} {all_registrations[row].duration}{os.linesep}{text['cost']} {all_registrations[row].cost}"
         keyboard = keyboard_tool.create_inlineKeyboard(
             {text["back"]: "back", text["next"]: "next", text["cancel"]: "cancel"}, 2
         )
@@ -132,14 +133,14 @@ def start_registration_timer():
                     try:
                         bot.send_message(
                             config["Telegramm"]["ADMIN_ID"],
-                            f"Запись через полчаса\n{str(r) + f"`{r.user_id}`\n@{user_name}"}",
+                            f"Запись через полчаса{os.linesep}{str(r) + f'`{r.user_id}`{os.linesep}@{user_name}'}",
                             parse_mode="markdown",
                         )
                     except ApiTelegramException:
                         pass
                     bot.send_message(
                         r.user_id,
-                        f"Напоминаю о записи через полчаса:\n{text["start_time_text"]} {reg_time_f}\n{text["zone"]} {r.zone}\n{text["duration_time_text"]} {r.duration}\n{text["cost"]} {r.cost}",
+                        f"Напоминаю о записи через полчаса:{os.linesep}{text['start_time_text']} {reg_time_f}{os.linesep}{text['zone']} {r.zone}{os.linesep}{text['duration_time_text']} {r.duration}{os.linesep}{text['cost']} {r.cost}",
                     )
 
                     post_base.update(models.Register, {"informed": True}, id=r.id)

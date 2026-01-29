@@ -74,7 +74,7 @@ class Register(Base):
         return f"<Register(id={self.id}, user_id={self.user_id}, zone={self.zone}, duration={self.duration}, datetime={self.datetime})>"
 
     def __str__(self):
-        return f"Время={self.datetime}\nЗона={self.zone}\nДлительность={self.duration}\nЗапись от  "
+        return f"Время={self.datetime}{os.linesep}Зона={self.zone}{os.linesep}Длительность={self.duration}{os.linesep}Запись от  "
 
 
 class WeekdayTimeslot(Base):
