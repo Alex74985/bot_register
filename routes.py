@@ -510,7 +510,7 @@ def save_chosen(call):
     bot.answer_callback_query(
         callback_query_id=call.id,
         show_alert=True,
-        text=f"{callback_text} {picked_date}{os.linesep}{f"{os.linesep}".join(ts)}",
+        text=f"{callback_text} {picked_date}{os.linesep}{f'{os.linesep}'.join(ts)}",
     )
     bot.delete_message(call.message.chat.id, call.message.message_id)
     base.delete(models.State, user_id=call.message.chat.id)
