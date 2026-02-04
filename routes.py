@@ -32,7 +32,7 @@ def start(message):
         base.new(models.User, message.chat.id, message.from_user.username)
         bot.send_message(
             message.chat.id,
-            bot_text["info"]["welcome_text"],
+            f"{os.linesep}".join(bot_text["info"]["welcome_text"]),
             reply_markup=keyboard_tool.get_menu_keyboard(),
         )
     else:
@@ -986,7 +986,7 @@ def confirm_registration(call):
         return
     data = fsm.get_state(call.message.chat.id)[1]
     bot.edit_message_text(
-        f"{bot_text['my_reg']['your_reg']}{os.linesep}{bot_text['my_reg']['start_time_text']}{data['datetime'].date()} {call.data}{os.linesep}{bot_text['my_reg']['zone']}{data['zone']}{os.linesep}{bot_text['my_reg']['duration_time_text']}{data['duration']}{os.linesep}{bot_text['my_reg']['cost']} {data['cost']}",
+        f"{bot_text['my_reg']['your_reg']}{os.linesep}{bot_text['my_reg']['start_time_text']}{data['datetime'].date()} {call.data}{os.linesep}{bot_text['my_reg']['zone']}{data['zone']}{os.linesep}{bot_text['my_reg']['duration_time_text']}{data['duration']} минут{os.linesep}{bot_text['my_reg']['cost']} {data['cost']}",
         call.message.chat.id,
         message_id=call.message.message_id,
     )

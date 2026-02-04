@@ -107,7 +107,7 @@ def my_registration_info(user_id, row=0):
     elif row == len(all_registrations):
         return "last", None
     try:
-        registration_text = f"{text['your_reg']}{os.linesep}{text['start_time_text']} {datetime.strftime(all_registrations[row].datetime, '%d-%m %H:%M')}{os.linesep}{text['zone']} {all_registrations[row].zone}{os.linesep}{text['duration_time_text']} {all_registrations[row].duration}{os.linesep}{text['cost']} {all_registrations[row].cost}"
+        registration_text = f"{text['your_reg']}{os.linesep}{text['start_time_text']} {datetime.strftime(all_registrations[row].datetime, '%d-%m %H:%M')}{os.linesep}{text['zone']} {all_registrations[row].zone}{os.linesep}{text['duration_time_text']} {all_registrations[row].duration} минут{os.linesep}{text['cost']} {all_registrations[row].cost}"
         keyboard = keyboard_tool.create_inlineKeyboard(
             {text["back"]: "back", text["next"]: "next", text["cancel"]: "cancel"}, 2
         )
@@ -140,7 +140,7 @@ def start_registration_timer():
                         pass
                     bot.send_message(
                         r.user_id,
-                        f"Напоминаю о записи через полчаса:{os.linesep}{text['start_time_text']} {reg_time_f}{os.linesep}{text['zone']} {r.zone}{os.linesep}{text['duration_time_text']} {r.duration}{os.linesep}{text['cost']} {r.cost}",
+                        f"Напоминаю о записи через полчаса:{os.linesep}{text['start_time_text']} {reg_time_f}{os.linesep}{text['zone']} {r.zone}{os.linesep}{text['duration_time_text']} {r.duration} минут{os.linesep}{text['cost']} {r.cost}",
                     )
 
                     post_base.update(models.Register, {"informed": True}, id=r.id)
